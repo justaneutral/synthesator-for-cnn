@@ -1,0 +1,79 @@
+arguments: . tf-
+[31mPattern: tf-
+(B[m./extractor_functions.cpp:211:		fprintf(f, "%d %d %d %d %d %d %d %d\n", tf->width, tf->length, tf->extention, tf->pipelinedelay, tf->GF2, tf->totaloffset, tf->kernel_size, tf->number_of_patterns);
+./extractor_functions.cpp:213:		for (unsigned i = 0;i < tf->kernel_size;i++)
+./extractor_functions.cpp:214:			fprintf(f, "%lf\n", tf->kernel[i]);
+./extractor_functions.cpp:216:		for (unsigned i = 0;i < tf->number_of_patterns;i++)
+./extractor_functions.cpp:217:			fprintf(f, "%d %d %d %d %d\n", tf->patterns[i][0], tf->patterns[i][1], tf->patterns[i][2], tf->patterns[i][3], tf->patterns[i][4]);
+./extractor_functions.cpp:219:		for (unsigned i = 0;i < tf->width;i++)
+./extractor_functions.cpp:220:			fprintf(f, "%d %d\n", tf->spectrumterms[i], tf->spectrumtermtaps[i]);
+./extractor_functions.cpp:238:		fscanf(f, "%d %d %d %d %d %d %d %d\n", &tf->width, &tf->length, &tf->extention, &tf->pipelinedelay, &tf->GF2, &tf->totaloffset, &tf->kernel_size, &tf->number_of_patterns);
+./extractor_functions.cpp:240:		tf->kernel = NULL;
+./extractor_functions.cpp:241:		if (tf->kernel_size > 0)
+./extractor_functions.cpp:243:			tf->kernel = malloc1d(tf->kernel_size);
+./extractor_functions.cpp:244:			for (unsigned i = 0;i < tf->kernel_size;i++)
+./extractor_functions.cpp:245:				fscanf(f, "%lf\n", &tf->kernel[i]);
+./extractor_functions.cpp:248:		tf->patterns = NULL;
+./extractor_functions.cpp:249:		if (tf->number_of_patterns > 0)
+./extractor_functions.cpp:251:			tf->patterns = malloc2i(tf->number_of_patterns, 5);
+./extractor_functions.cpp:252:			for (unsigned i = 0;i < tf->number_of_patterns;i++)
+./extractor_functions.cpp:253:				fscanf(f, "%d %d %d %d %d\n", &tf->patterns[i][0], &tf->patterns[i][1], &tf->patterns[i][2], &tf->patterns[i][3], &tf->patterns[i][4]);
+./extractor_functions.cpp:256:		tf->spectrumterms = NULL;
+./extractor_functions.cpp:257:		tf->spectrumtermtaps = NULL;
+./extractor_functions.cpp:258:		if (tf->width > 0)
+./extractor_functions.cpp:260:			tf->spectrumterms = malloc1i(tf->width);
+./extractor_functions.cpp:261:			tf->spectrumtermtaps = malloc1i(tf->width);
+./extractor_functions.cpp:262:			for (unsigned i = 0;i < tf->width;i++)
+./extractor_functions.cpp:263:				fscanf(f, "%d %d\n", &tf->spectrumterms[i], &tf->spectrumtermtaps[i]);
+./factorizator.cpp:9:	if (ptf->timescale <= 0)
+./factorizator.cpp:11:		double **m = ptf->matrix;
+./factorizator.cpp:12:		unsigned M = ptf->width;
+./factorizator.cpp:13:		unsigned N = ptf->length;
+./factorizator.cpp:55:	kernel_size_max = (abs(tf->GF2)>0) ? (1<<(abs(tf->GF2)))-1 : tf->length*tf->width;
+./factorizator.cpp:56:	dropthreshold = tf->dropthreshold;
+./factorizator.cpp:58:	pattern_size_max=(tf->length-1)*tf->width;
+./factorizator.cpp:60:	print_matrix_d("input matrix", tf->matrix, tf->width, tf->length);
+./factorizator.cpp:63:	print_matrix_d_for_matlab("matrix",tf->matrix, tf->width, tf->length);
+./factorizator.cpp:65:	spectrum=malloc1d(tf->width);
+./factorizator.cpp:66:	originalspectrum=malloc1d(tf->width);
+./factorizator.cpp:69:	commutator_image=malloc2i(tf->width, tf->length);
+./factorizator.cpp:70:	spectrumterms=malloc1i(tf->width);
+./factorizator.cpp:71:	spectrumtermtaps=malloc1i(tf->width);
+./factorizator.cpp:72:	for (unsigned int i = 0;i < tf->width;i++)
+./factorizator.cpp:79:	kernel_size=factorizeC(tf->matrix,kernel,kernel_size_max,commutator_image, tf->width, tf->length);
+./factorizator.cpp:84:		free2d(tf->matrix, tf->width);
+./factorizator.cpp:88:		free2i(commutator_image, tf->width);
+./factorizator.cpp:98:	print_matrix_i("Commutator image",commutator_image, tf->width, tf->length);
+./factorizator.cpp:101:	pattern_size=serialize_commutatorC(commutator_image, tf->width, tf->length, tf->pipelinedelay, tf->numberofchannels,patterns,pattern_size_max,patternoccurences,spectrumterms,spectrumtermtaps,&extention,dropthreshold);
+./factorizator.cpp:102:	update_pattern_timescale(tf->timescale,patterns, pattern_size, spectrumtermtaps, tf->width);
+./factorizator.cpp:105:	print_matrix_i("Commutator image after serialization",commutator_image, tf->width, tf->length);
+./factorizator.cpp:111:	print_vector_i("Spectrum terms",spectrumterms, tf->width);
+./factorizator.cpp:112:	print_vector_i("Spectrum term taps",spectrumtermtaps, tf->width);
+./factorizator.cpp:123:	matrix_multiplication_conventional_for_offset_search(tf->matrix, tf->width, tf->length,originalspectrum);
+./factorizator.cpp:124:	print_vector_d("Spectrum of the conventional method",originalspectrum, tf->width);
+./factorizator.cpp:127:	totaloffset=matrix_multiplication_find_offset(spectrum,patterns,pattern_size,spectrumterms,spectrumtermtaps, tf->width, tf->length,kernel,kernel_size,extention,testvector,testvectorlength,tf->pipelinedelay, tf->numberofchannels,originalspectrum);
+./factorizator.cpp:128:	print_vector_d("Spectrum of the fast method",spectrum, tf->width);
+./factorizator.cpp:132:	for (ind1 = 0;ind1 < tf->width;ind1++)
+./factorizator.cpp:137:	print_vector_d("Difference between the fast and conventional method",originalspectrum, tf->width);
+./factorizator.cpp:149:		matrix_multiplication_conventional(tf->matrix,tf->width,tf->length,spectrum,testvector1,testvectorlength1,i,tf->GF2);
+./factorizator.cpp:150:		print_vector_d("Spectrum of the conventional method for long test vector",spectrum, tf->width);
+./factorizator.cpp:152:	//matrix_multiplicationConveyor(spectrum,patterns,pattern_size,spectrumterms,spectrumtermtaps,tf->width,tf->length,kernel,kernel_size,extention,testvector1,testvectorlength1,tf->pipelinedelay,tf->GF2,6);
+./factorizator.cpp:153:	matrix_multiplicationConveyor(spectrum,patterns,pattern_size,spectrumterms,spectrumtermtaps,tf->width,tf->length,kernel,kernel_size,extention,testvector1,testvectorlength1,tf->pipelinedelay,tf->GF2,4);
+./factorizator.cpp:154:	print_vector_d("Spectrum of the fast method for long test vector",spectrum, tf->width);
+./factorizator.cpp:155:	matrix_multiplicationOneVector(spectrum,patterns,pattern_size,spectrumterms,spectrumtermtaps,tf->width,tf->length,kernel,kernel_size,extention,testvector1,testvectorlength1,tf->pipelinedelay,tf->numberofchannels,tf->GF2,4);
+./factorizator.cpp:156:	print_vector_d("Spectrum of the fast 2 method for long test vector",spectrum, tf->width);
+./factorizator.cpp:163:	for(j=0;j<tf->width;j++)
+./factorizator.cpp:170:	//tf->pipelinedelay=pipelinedelay;
+./factorizator.cpp:172:	tf->totaloffset=totaloffset;
+./factorizator.cpp:174:	tf->maxtap=maxtap;
+./factorizator.cpp:175:	tf->extention=extention;
+./factorizator.cpp:183:	tf[0].size= tf->width;
+./factorizator.cpp:184:	tf[0].commutator_image=malloc2i(tf[0].size, tf->length);
+./factorizator.cpp:188:				memcpy(tf[0].commutator_image[ind0],commutator_image[ind0], tf->length);
+./factorizator.cpp:189:	free2i(commutator_image, tf->width);
+./getmatrix.cpp:7:	printf("matrix structire: Y x X = %ld x %ld\n", ptf->width, ptf->length);
+./getmatrix.cpp:8:	ptf->matrix = malloc2d(ptf->width, ptf->length);
+./getmatrix.cpp:9:	if (ptf->matrix)
+./getmatrix.cpp:11:		for (unsigned i = 0; i < ptf->width; i++)
+./getmatrix.cpp:13:			for (unsigned j = 0;j < ptf->length;j++)
+./getmatrix.cpp:15:				ptf->matrix[i][j] = *(v++);

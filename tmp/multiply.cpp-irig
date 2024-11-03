@@ -1,0 +1,289 @@
+#include "factorizator.h"
+
+int matrix_multiplication_conventional(double **matrix,unsigned matrix_width,unsigned matrix_length,double *originalspectrum,double *testvector,unsigned testvectorlength,int offset, int GF2)
+{
+	unsigned ind1,ind2;
+	int ind3;
+	for(ind1=0;ind1<matrix_width;ind1++)
+	{
+		originalspectrum[ind1]= (GF2 < 0)? 1.0 : 0.0;
+		for (ind2 = 0;ind2 < matrix_length;ind2++)
+		{
+			ind3 = offset + ind2;
+			if (ind3 >= 0 && ind3<int(testvectorlength))
+			{
+				if (GF2 == 0)
+				{
+					originalspectrum[ind1] += matrix[ind1][ind2] * testvector[ind3];
+				}
+				else
+				{
+					if (GF2 < 0)
+					{
+						if (matrix[ind1][ind2])
+						{
+							originalspectrum[ind1] *= testvector[ind3];
+						}
+					}
+					else
+					{
+						unsigned long a = originalspectrum[ind1], b = matrix[ind1][ind2], c = testvector[ind3];
+						a ^= (b&c);
+						originalspectrum[ind1] = a;
+					}
+				}
+			}
+			else
+			{
+				print_vector_i("Error - test vector preambula is too short",NULL,ind3);
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+
+int matrix_multiplication_conventional_for_offset_search(double **matrix,unsigned matrix_width,unsigned matrix_length,double *originalspectrum)
+{
+	unsigned ind1,ind2;
+	ind2=0;
+	for(ind1=0;ind1<matrix_width;ind1++)
+	{
+		originalspectrum[ind1]=matrix[ind1][matrix_length-1];
+		if(originalspectrum[ind1]!=0.0)
+			ind2++;
+	}
+	return ind2;
+}
+
+void matrix_multiplication_iterationC(double **terms,unsigned conveyerwidth,int **patterns,unsigned pattern_size,double *kernel,unsigned kernel_size,unsigned conveyerlength,double currentelement,double **rez1,unsigned pipelinedelay,int GF2)
+{
+	int i,j,termsrow,patternsrow,p1,p1delay,p1pos,p2,p2delay,p2pos;
+	double arg1,arg2,rez;
+	
+	//propagate
+	for(i=0;i<int(conveyerwidth);i++)
+	{
+		for(j=0;j<int(conveyerlength)-1;j++)
+			terms[i][j]=terms[i][j+1];
+		terms[i][conveyerlength-1]=0;
+	}
+	//populate products
+    for(i=0;i<kernel_size;i++)
+		terms[i][conveyerlength-1]=currentelement*kernel[i];
+    //here we update terms one by one if they are.
+	if (pattern_size > 0)
+	{
+		for (termsrow = patterns[0][0] - 1;termsrow < patterns[pattern_size - 1][0];termsrow++)
+		{
+			patternsrow = termsrow - patterns[0][0] + 1;
+			p1 = patterns[patternsrow][1] - 1;
+			p1delay = patterns[patternsrow][3];
+			p1pos = conveyerlength - p1delay - 1;
+			arg1 = terms[p1][p1pos];
+			p2 = patterns[patternsrow][2] - 1;
+			p2delay = patterns[patternsrow][4];
+			p2pos = conveyerlength - p2delay - 1;
+			arg2 = terms[p2][p2pos];
+
+			///.///good for pipeline delay 
+			if (pipelinedelay > 0)
+				for (i = pipelinedelay - 1;i >= 0;i--)
+					rez1[termsrow - patterns[0][0] + 1][i + 1] = rez1[termsrow - patterns[0][0] + 1][i];
+			if (GF2 == 0)
+			{
+				rez1[termsrow - patterns[0][0] + 1][0] = arg1 + arg2;
+			}
+			else
+			{
+				if (GF2 < 0)
+				{
+					rez1[termsrow - patterns[0][0] + 1][0] = arg1 * arg2;
+				}
+				else
+				{
+					unsigned long a, b=arg1, c=arg2;
+					a = b^c;
+					rez1[termsrow - patterns[0][0] + 1][0] = a;
+				}
+			}
+			///.///rez=arg1+arg2;	
+			rez = rez1[termsrow - patterns[0][0] + 1][pipelinedelay];
+			terms[termsrow][conveyerlength - 1] = rez;
+		}
+	}
+}
+
+void extract_spectrumC(double *spectrum,double **terms,int *spectrumterms,int *spectrumtermtaps,unsigned numberofvectors,unsigned conveyerlength)
+{
+	unsigned spectrumindex,spectrumtermindex;
+	for(spectrumindex=0;spectrumindex<numberofvectors;spectrumindex++)
+	{
+		if (spectrumterms[spectrumindex] > 0)
+		{
+			spectrumtermindex = spectrumterms[spectrumindex] - 1;
+			spectrum[spectrumindex] = terms[spectrumtermindex][spectrumtermtaps[spectrumindex]];
+		}
+		else
+		{
+			spectrum[spectrumindex] = 0;
+			//printf(".");
+		}
+	}
+}
+
+void matrix_multiplicationConveyor(double *spectrum,int **patterns,unsigned pattern_size,int *spectrumterms,int *spectrumtermtaps,unsigned original_matrix_width,unsigned original_matrix_length,double *kernel,unsigned kernel_size,unsigned extention,double *vector,unsigned vectorlength,unsigned pipelinedelay,int GF2)
+{
+	unsigned conveyerlength,conveyerwidth,vectorindex;
+	double currentelement;
+	double **terms=NULL;
+	double **rez1=NULL;
+	conveyerlength=original_matrix_length+extention;
+    conveyerwidth=kernel_size+pattern_size;
+    terms=malloc2d(conveyerwidth,conveyerlength);
+	if(terms)
+	{
+		if(rez1=malloc2d(pattern_size,pipelinedelay+1))
+		{
+			for(vectorindex=0;vectorindex<vectorlength;vectorindex++)
+			{
+				currentelement=vector[vectorindex];
+				matrix_multiplication_iterationC(terms,conveyerwidth,patterns,pattern_size,kernel,kernel_size,conveyerlength,currentelement,rez1,pipelinedelay,GF2);
+				//print_matrix_d("Terms",terms,conveyerwidth,conveyerlength);
+			}
+			free2d(rez1,pattern_size);
+			//print_matrix_d("Terms, final stage",terms,conveyerwidth,conveyerlength);
+			extract_spectrumC(spectrum,terms,spectrumterms,spectrumtermtaps,original_matrix_width,conveyerlength);
+		}
+		free2d(terms,conveyerwidth);
+	}
+}
+
+void matrix_multiplicationOneVector(double *spectrum,int **patterns,unsigned pattern_size,int *spectrumterms,int *spectrumtermtaps,unsigned original_matrix_width,unsigned original_matrix_length,double *kernel,unsigned kernel_size,unsigned extention,double *vector,unsigned vectorlength,unsigned pipelinedelay,unsigned number_of_channels,int GF2)
+{
+	unsigned conveyerlength,conveyerwidth,i,j,taillength;
+	double currentelement;
+	double **terms=NULL;
+	double **rez1=NULL;
+	conveyerlength=(original_matrix_length)*number_of_channels+extention;
+	i=0;
+	for(j=0;j<original_matrix_width;j++)
+	{
+		i=i<(unsigned)spectrumtermtaps[j]?(unsigned)spectrumtermtaps[j]:i;
+	}
+#if (1)
+	print_vector_i("taps",spectrumtermtaps,original_matrix_width);
+#endif
+	
+	taillength=2*conveyerlength;//6 for 2 ch 0pd.;//3 for 1 ch. 0pd.
+    
+	conveyerwidth=kernel_size+pattern_size;
+    terms=malloc2d(conveyerwidth,conveyerlength);
+	if(terms)
+	{
+		if(rez1=malloc2d(pattern_size,pipelinedelay+1))
+		{
+			//feed all vector elements to the conveyor and calculate intermittant terms
+			for(i=0;i<vectorlength;i++)
+			{
+				currentelement=vector[i];
+				matrix_multiplication_iterationC(terms,conveyerwidth,patterns,pattern_size,kernel,kernel_size,conveyerlength,currentelement,rez1,pipelinedelay,GF2);
+				if(number_of_channels>1)
+				{
+					for(j=1;j<number_of_channels;j++)
+					{
+						currentelement=0.0; //can be any or from different channels mixed in the input stream
+						matrix_multiplication_iterationC(terms,conveyerwidth,patterns,pattern_size,kernel,kernel_size,conveyerlength,currentelement,rez1,pipelinedelay,GF2);
+#if (1)
+						extract_spectrumC(spectrum,terms,spectrumterms,spectrumtermtaps,original_matrix_width,conveyerlength);
+						print_vector_d("cur spec:",spectrum,original_matrix_width);
+#endif
+					}
+				}
+				//print_matrix_d("Terms",terms,conveyerwidth,conveyerlength);
+			}
+			//continue cycling until all terms travel to the terminals
+			for(i=0;i<taillength;i++)
+			{
+				currentelement=0.0;//can be any or from the next vector.
+				matrix_multiplication_iterationC(terms,conveyerwidth,patterns,pattern_size,kernel,kernel_size,conveyerlength,currentelement,rez1,pipelinedelay,GF2);
+#if (0)
+				extract_spectrumC(spectrum,terms,spectrumterms,spectrumtermtaps,original_matrix_width,conveyerlength);
+				print_vector_d("cur spec:",spectrum,original_matrix_width);
+#endif
+				//print_matrix_d("Terms",terms,conveyerwidth,conveyerlength);
+			}
+
+			//free buffers that are not used
+			free2d(rez1,pattern_size);
+			//print_matrix_d("Terms, final stage",terms,conveyerwidth,conveyerlength);
+			extract_spectrumC(spectrum,terms,spectrumterms,spectrumtermtaps,original_matrix_width,conveyerlength);
+#if (0)
+			print_vector_d("cur spec:",spectrum,original_matrix_width);
+#endif
+		}
+		free2d(terms,conveyerwidth);
+	}
+}
+
+double calculate_energy(double *vect0,double *vect1, unsigned len)
+{
+	double energy;
+	unsigned i;
+	energy=0.0;
+	for (i = 0;i < len;i++)
+	{
+		energy += vect0[i] * vect1[i];
+		if (energy < 0.0)
+		{
+			printf("energy < 0\n");
+			print_vector_d("vect0", vect0, len);
+			print_vector_d("vect1", vect1, len);
+		}
+	}
+	return energy;
+}
+
+unsigned matrix_multiplication_find_offset(double *spectrum,int **patterns,unsigned pattern_size,int *spectrumterms,int *spectrumtermtaps,unsigned original_matrix_width,unsigned original_matrix_length,double *kernel,unsigned kernel_size,unsigned extention,double *vector,unsigned vectorlength,unsigned pipelinedelay,unsigned number_of_channels,double *testspectrum)
+{
+	unsigned conveyerlength,conveyerwidth,i,taillength,totaloffset;
+	double currentelement,energy0,energy1;
+	double **terms=NULL;
+	double **rez1=NULL;
+	totaloffset=0;
+	conveyerlength=(original_matrix_length)*number_of_channels+extention;
+	taillength=original_matrix_length*original_matrix_width*conveyerlength;//6 for 2 ch 0pd.;//3 for 1 ch. 0pd.
+    
+	conveyerwidth=kernel_size+pattern_size;
+    terms=malloc2d(conveyerwidth,conveyerlength);
+	if(terms)
+	{
+		if(rez1=malloc2d(pattern_size,pipelinedelay+1))
+		{
+			//calculate criteria for stopping
+			energy0=calculate_energy(testspectrum,testspectrum,original_matrix_width);
+			energy1=0.0;
+			//feed all vector elements to the conveyor and calculate intermittent terms
+			//continue cycling until all terms travel to the terminals
+			for(i=0;energy0>=0 && i<vectorlength*number_of_channels+taillength;i++)
+			{
+				totaloffset++;
+				currentelement = (i == 0) ? 1.0 : 0.0;
+				matrix_multiplication_iterationC(terms,conveyerwidth,patterns,pattern_size,kernel,kernel_size,conveyerlength,currentelement,rez1,pipelinedelay,0);
+				//if(i>=conveyerlength)
+				{
+					extract_spectrumC(spectrum, terms, spectrumterms, spectrumtermtaps, original_matrix_width, conveyerlength);
+					energy1 = calculate_energy(testspectrum, spectrum, original_matrix_width);
+					if (energy1 || energy1*1.01 > energy0)
+					{
+						energy0 = -1.0;
+					}
+				}
+			}
+			//free buffers that are not used
+			free2d(rez1,pattern_size);
+		}
+		free2d(terms,conveyerwidth);
+	}
+	return totaloffset-1;
+}
